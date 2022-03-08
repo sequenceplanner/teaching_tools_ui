@@ -1,0 +1,16 @@
+[package]
+name = "teaching_tools_ui"
+version = "0.1.0"
+authors = ["Endre Erős <endree@chalmers.se>"]
+edition = "2021"
+
+[dependencies]
+r2r = "0.6.2"
+iced = { git = "https://github.com/iced-rs/iced.git", features = ["image", "debug", "tokio"] }
+iced_native = { git = "https://github.com/iced-rs/iced.git" }
+futures = "0.3.15"
+tokio = { version = "1", features = ["full"] }
+
+[[bin]]
+name = "teaching_tools_ui"
+path = "src/teaching_tools_ui.rs"
