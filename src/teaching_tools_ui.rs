@@ -22,7 +22,7 @@ struct TeachingToolsUI {
     reset_marker_client: Arc<Mutex<r2r::Client<Trigger::Service>>>,
     match_ghost_client:
         Arc<Mutex<ActionClient<r2r::ur_controller_msgs::action::URControl::Action>>>,
-    ghost_state: Arc<Mutex<JointState>>, // waiting_for_reset_ghost_server: impl Future<Output = r2r::Result<()>>
+    ghost_state: Arc<Mutex<JointState>>,
 }
 
 pub fn main() -> iced::Result {
@@ -174,9 +174,6 @@ async fn reset_ghost_and_marker(
     marker_client: Arc<Mutex<r2r::Client<Trigger::Service>>>,
     // waiting: impl Future<Output = r2r::Result<()>>,
 ) -> Option<()> {
-    // r2r::log_warn!(NODE_ID, "Waiting for tf Lookup service...");
-    // waiting.await;
-    // r2r::log_info!(NODE_ID, "tf Lookup Service available.");
 
     let ghost_request_msg = Trigger::Request {};
     let marker_request_msg = Trigger::Request {};
@@ -229,6 +226,8 @@ async fn match_ghost(
         command: "move_j".to_string(),
         use_joint_positions: true,
         joint_positions: joint_state_local,
+        velocity: 0.1,
+        acceleration: 0.1,
         ..Default::default()
     };
 
@@ -272,41 +271,3 @@ async fn match_ghost(
         }
     }
 }
-
-// async fn execute_event_based_command(
-//     goal: SimpleRobotControl::Goal,
-//     client: &r2r::ActionClient<SimpleRobotControl::Action>,
-// ) -> bool {
-//     r2r::log_info!(NODE_ID, "Sending request to Simple Robot Simulator.");
-
-//     let (_goal, result, _feedback) = match client.send_goal_request(goal) {
-//         Ok(x) => match x.await {
-//             Ok(y) => y,
-//             Err(_) => {
-//                 r2r::log_info!(NODE_ID, "Could not send goal request.");
-//                 return false;
-//             }
-//         },
-//         Err(_) => {
-//             r2r::log_info!(NODE_ID, "Did not get goal.");
-//             return false;
-//         }
-//     };
-
-//     match result.await {
-//         Ok((status, msg)) => match status {
-//             r2r::GoalStatus::Aborted => {
-//                 r2r::log_info!(NODE_ID, "Goal succesfully aborted with: {:?}", msg);
-//                 true
-//             }
-//             _ => {
-//                 r2r::log_info!(NODE_ID, "Executing the Simple Robot Simulator Command succeeded.");
-//                 true
-//             }
-//         },
-//         Err(e) => {
-//             r2r::log_error!(NODE_ID, "Simple Robot Simulator Action failed with: {:?}", e,);
-//             false
-//         }
-//     }
-// }
