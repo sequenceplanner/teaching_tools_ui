@@ -23,6 +23,10 @@ struct TeachingToolsUI {
     match_ghost_client:
         Arc<Mutex<ActionClient<r2r::ur_controller_msgs::action::URControl::Action>>>,
     ghost_state: Arc<Mutex<JointState>>,
+    open_button: button::State,
+    close_button: button::State,
+    open_gripper_client: Arc<Mutex<r2r::Client<Trigger::Service>>>,
+    close_gripper_client: Arc<Mutex<r2r::Client<Trigger::Service>>>,
 }
 
 pub fn main() -> iced::Result {
@@ -42,6 +46,8 @@ enum Message {
     Empty,
     Reset,
     Match,
+    Open,
+    Close
 }
 
 // instead of the match service and so, listen to the ghost joint state here and
@@ -71,6 +77,18 @@ impl Application for TeachingToolsUI {
             node.create_action_client::<URControl::Action>("ur_control")
                 .expect("could not create ur control client"),
         ));
+
+        let open_gripper = node
+            .create_client::<Trigger::Service>("robotiq_2f_open")
+            .expect("could not create open gripper client");
+        // let waiting_for_reset_ghost_server = node.is_available(&reset_ghost);
+        let open_gripper_client = Arc::new(Mutex::new(open_gripper));
+
+        let close_gripper = node
+            .create_client::<Trigger::Service>("robotiq_2f_close")
+            .expect("could not create close gripper client");
+        // let waiting_for_reset_ghost_server = node.is_available(&reset_ghost);
+        let close_gripper_client = Arc::new(Mutex::new(close_gripper));
 
         // initialize the ghost joint state
         let ghost_joint_state = Arc::new(Mutex::new(JointState {
@@ -103,13 +121,17 @@ impl Application for TeachingToolsUI {
                 reset_marker_client: reset_marker_client.clone(),
                 match_ghost_client: match_ghost_client.clone(),
                 ghost_state: ghost_joint_state_clone_2,
+                open_button: button::State::new(),
+                close_button: button::State::new(),
+                open_gripper_client: open_gripper_client.clone(),
+                close_gripper_client: close_gripper_client.clone()
             },
             Command::none(),
         )
     }
 
     fn title(&self) -> String {
-        String::from("Reset ghost service")
+        String::from("Conveniences...")
     }
 
     fn update(&mut self, message: Message) -> iced::Command<Message> {
@@ -128,6 +150,14 @@ impl Application for TeachingToolsUI {
                 match_ghost(self.match_ghost_client.clone(), self.ghost_state.clone()),
                 |_| Message::Empty,
             ),
+            Message::Open => Command::perform(
+                open_gripper(self.open_gripper_client.clone()),
+                |_| Message::Empty,
+            ),
+            Message::Close => Command::perform(
+                close_gripper(self.close_gripper_client.clone()),
+                |_| Message::Empty,
+            ),
             Message::Empty => Command::none(),
         }
     }
@@ -143,6 +173,14 @@ impl Application for TeachingToolsUI {
             .push(
                 Button::new(&mut self.match_button, Text::new("match ghost"))
                     .on_press(Message::Match),
+            )
+            .push(
+                Button::new(&mut self.open_button, Text::new("open gripper"))
+                    .on_press(Message::Open),
+            )
+            .push(
+                Button::new(&mut self.close_button, Text::new("close gripper"))
+                    .on_press(Message::Close),
             )
             .into()
     }
@@ -267,6 +305,62 @@ async fn match_ghost(
                 "Simple Robot Simulator Action failed with: {:?}",
                 e,
             );
+            None
+        }
+    }
+}
+
+async fn open_gripper(
+    client: Arc<Mutex<r2r::Client<Trigger::Service>>>
+) -> Option<()> {
+
+    let request_msg = Trigger::Request {};
+
+    let request = client
+        .lock()
+        .unwrap()
+        .request(&request_msg)
+        .expect("Could not send open gripper request.");
+
+    r2r::log_info!(NODE_ID, "Request to open the gripper sent.");
+
+    let response = request.await.expect("asdf");
+
+    match response.success {
+        true => {
+            r2r::log_info!(NODE_ID, "Gripper should be opened now.");
+            Some(())
+        }
+        false => {
+            r2r::log_error!(NODE_ID, "Couldn't open the gripper.",);
+            None
+        }
+    }
+}
+
+async fn close_gripper(
+    client: Arc<Mutex<r2r::Client<Trigger::Service>>>
+) -> Option<()> {
+
+    let request_msg = Trigger::Request {};
+
+    let request = client
+        .lock()
+        .unwrap()
+        .request(&request_msg)
+        .expect("Could not send close gripper request.");
+
+    r2r::log_info!(NODE_ID, "Request to close the gripper sent.");
+
+    let response = request.await.expect("asdf");
+
+    match response.success {
+        true => {
+            r2r::log_info!(NODE_ID, "Gripper should be closed now.");
+            Some(())
+        }
+        false => {
+            r2r::log_error!(NODE_ID, "Couldn't close the gripper.",);
             None
         }
     }
